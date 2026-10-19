@@ -1,419 +1,359 @@
-import java.util.ArrayList;
-import java.util.Scanner;
-
-class Donor {
-    int donorId;
-    String name;
-    int age;
-    String gender;
-    String bloodGroup;
-    String phone;
-    String city;
-
-    Donor(int donorId, String name, int age, String gender,
-            String bloodGroup, String phone, String city) {
-
-        this.donorId = donorId;
-        this.name = name;
-        this.age = age;
-        this.gender = gender;
-        this.bloodGroup = bloodGroup;
-        this.phone = phone;
-        this.city = city;
-    }
-
-    void display() {
-        System.out.println("----------------------------------");
-        System.out.println("Donor ID     : " + donorId);
-        System.out.println("Name         : " + name);
-        System.out.println("Age          : " + age);
-        System.out.println("Gender       : " + gender);
-        System.out.println("Blood Group  : " + bloodGroup);
-        System.out.println("Phone        : " + phone);
-        System.out.println("City         : " + city);
-    }
-}
+import java.util.*;
+import java.nio.file.*;
+import java.io.IOException;
+import java.util.stream.Collectors;
 
 public class BloodBankSystem {
 
-    static Scanner sc = new Scanner(System.in);
-
-    static ArrayList<Donor> donors = new ArrayList<>();
-
-    static int[] bloodUnits = new int[8];
-
-    static String[] bloodGroups = {
-            "A+", "A-", "B+", "B-",
-            "AB+", "AB-", "O+", "O-"
+    static final String FILE = "donors.txt";
+    static final String[] GROUPS = {
+            "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"
     };
 
-    static int donorIdCounter = 1001;
+    static Scanner sc = new Scanner(System.in);
 
-    public static void main(String[] args) {
+    interface Record {
+        void display();
+    }
 
-        // Sample donors
-        donors.add(new Donor(
-                donorIdCounter++, "Rahul", 22,
-                "Male", "O+", "9876543210", "Hyderabad"));
+    static class Person {
+        private String name;
+        private int age;
 
-        donors.add(new Donor(
-                donorIdCounter++, "Priya", 24,
-                "Female", "A+", "9876501234", "Hyderabad"));
+        Person(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
 
-        donors.add(new Donor(
-                donorIdCounter++, "Arjun", 25,
-                "Male", "B+", "9123456780", "Secunderabad"));
+        public String getName() {
+            return name;
+        }
 
-        // Sample inventory
-        bloodUnits[0] = 5; // A+
-        bloodUnits[1] = 2; // A-
-        bloodUnits[2] = 4; // B+
-        bloodUnits[3] = 1; // B-
-        bloodUnits[4] = 3; // AB+
-        bloodUnits[5] = 1; // AB-
-        bloodUnits[6] = 6; // O+
-        bloodUnits[7] = 2; // O-
+        public int getAge() {
+            return age;
+        }
+    }
 
-        int choice;
+    static class Donor extends Person
+            implements Record, Comparable<Donor> {
 
-        do {
-            System.out.println("\n====================================");
-            System.out.println("      BLOOD BANK MANAGEMENT SYSTEM");
-            System.out.println("====================================");
-            System.out.println("1. Add Donor");
-            System.out.println("2. View All Donors");
-            System.out.println("3. Search Donor");
-            System.out.println("4. View Blood Inventory");
-            System.out.println("5. Add Blood Units");
-            System.out.println("6. Issue Blood Units");
-            System.out.println("7. Find Compatible Donors");
-            System.out.println("8. Check Blood Availability");
-            System.out.println("9. Exit");
-            System.out.println("====================================");
+        private int id;
+        private String group, phone, city;
 
-            System.out.print("Enter your choice: ");
-            choice = sc.nextInt();
-            sc.nextLine();
+        Donor(int id, String name, int age, String group,
+                String phone, String city) {
+            super(name, age);
+            this.id = id;
+            this.group = group;
+            this.phone = phone;
+            this.city = city;
+        }
 
-            switch (choice) {
+        public String getGroup() {
+            return group;
+        }
 
-                case 1:
-                    addDonor();
-                    break;
+        public int getId() {
+            return id;
+        }
 
-                case 2:
-                    viewDonors();
-                    break;
+        @Override
+        public void display() {
+            System.out.println(this);
+        }
 
-                case 3:
-                    searchDonor();
-                    break;
+        @Override
+        public String toString() {
+            return String.format(
+                    "ID:%d | Name:%s | Age:%d | Group:%s | City:%s",
+                    id, getName(), getAge(), group, city);
+        }
 
-                case 4:
-                    viewInventory();
-                    break;
+        String toFile() {
+            return String.join("|", String.valueOf(id),
+                    getName(), String.valueOf(getAge()),
+                    group, phone, city);
+        }
 
-                case 5:
-                    addBloodUnits();
-                    break;
-
-                case 6:
-                    issueBloodUnits();
-                    break;
-
-                case 7:
-                    findCompatibleDonors();
-                    break;
-
-                case 8:
-                    checkAvailability();
-                    break;
-
-                case 9:
-                    System.out.println("\nThank you for using the system.");
-                    break;
-
-                default:
-                    System.out.println("Invalid choice.");
+        
+        static Donor fromFile(String line) {
+            String[] p = line.split("\\|", -1);
+            if (p.length != 6) {
+                throw new IllegalArgumentException("Invalid record");
             }
 
-        } while (choice != 9);
-
-        sc.close();
-    }
-
-    // Add donor
-    static void addDonor() {
-
-        System.out.println("\n----- ADD DONOR -----");
-
-        System.out.print("Enter donor name: ");
-        String name = sc.nextLine();
-
-        System.out.print("Enter age: ");
-        int age = sc.nextInt();
-        sc.nextLine();
-
-        System.out.print("Enter gender: ");
-        String gender = sc.nextLine();
-
-        System.out.print("Enter blood group: ");
-        String bloodGroup = sc.nextLine().toUpperCase();
-
-        if (!isValidBloodGroup(bloodGroup)) {
-            System.out.println("Invalid blood group.");
-            return;
+            return new Donor(
+                    Integer.parseInt(p[0]), p[1],
+                    Integer.parseInt(p[2]), p[3], p[4], p[5]);
         }
 
-        System.out.print("Enter phone number: ");
-        String phone = sc.nextLine();
-
-        System.out.print("Enter city: ");
-        String city = sc.nextLine();
-
-        Donor donor = new Donor(
-                donorIdCounter++,
-                name,
-                age,
-                gender,
-                bloodGroup,
-                phone,
-                city);
-
-        donors.add(donor);
-
-        System.out.println("\nDonor added successfully.");
-        System.out.println("Donor ID: " + donor.donorId);
-    }
-
-    // Display donors
-    static void viewDonors() {
-
-        System.out.println("\n========== DONOR LIST ==========");
-
-        if (donors.isEmpty()) {
-            System.out.println("No donors available.");
-            return;
-        }
-
-        for (Donor donor : donors) {
-            donor.display();
+        
+        @Override
+        public int compareTo(Donor other) {
+            return getName().compareToIgnoreCase(other.getName());
         }
     }
 
-    // Search donor
-    static void searchDonor() {
-
-        System.out.print("\nEnter blood group to search: ");
-        String group = sc.nextLine().toUpperCase();
-
-        boolean found = false;
-
-        for (Donor donor : donors) {
-
-            if (donor.bloodGroup.equals(group)) {
-                donor.display();
-                found = true;
-            }
+    static boolean validGroup(String group) {
+        for (String g : GROUPS) {
+            if (g.equals(group))
+                return true;
         }
-
-        if (!found) {
-            System.out.println("No donor found for " + group);
-        }
+        return false;
     }
 
-    // View inventory
-    static void viewInventory() {
-
-        System.out.println("\n========== BLOOD INVENTORY ==========");
-
-        for (int i = 0; i < bloodGroups.length; i++) {
-
-            System.out.println(
-                    bloodGroups[i] + " : " +
-                            bloodUnits[i] + " units");
-        }
-    }
-
-    // Add blood units
-    static void addBloodUnits() {
-
-        System.out.print("\nEnter blood group: ");
-        String group = sc.nextLine().toUpperCase();
-
-        int index = getBloodGroupIndex(group);
-
-        if (index == -1) {
-            System.out.println("Invalid blood group.");
-            return;
-        }
-
-        System.out.print("Enter number of units: ");
-        int units = sc.nextInt();
-
-        if (units <= 0) {
-            System.out.println("Invalid number of units.");
-            return;
-        }
-
-        bloodUnits[index] += units;
-
-        System.out.println(
-                units + " units added successfully.");
-    }
-
-    // Issue blood units
-    static void issueBloodUnits() {
-
-        System.out.print("\nEnter blood group: ");
-        String group = sc.nextLine().toUpperCase();
-
-        int index = getBloodGroupIndex(group);
-
-        if (index == -1) {
-            System.out.println("Invalid blood group.");
-            return;
-        }
-
-        System.out.print("Enter number of units required: ");
-        int units = sc.nextInt();
-
-        if (units <= 0) {
-            System.out.println("Invalid number of units.");
-            return;
-        }
-
-        if (bloodUnits[index] >= units) {
-
-            bloodUnits[index] -= units;
-
-            System.out.println(
-                    units + " units issued successfully.");
-
-        } else {
-
-            System.out.println(
-                    "Insufficient blood stock.");
-        }
-    }
-
-    // Check blood availability
-    static void checkAvailability() {
-
-        System.out.print("\nEnter required blood group: ");
-        String group = sc.nextLine().toUpperCase();
-
-        int index = getBloodGroupIndex(group);
-
-        if (index == -1) {
-            System.out.println("Invalid blood group.");
-            return;
-        }
-
-        System.out.println(
-                "Available units of " + group +
-                        " : " + bloodUnits[index]);
-    }
-
-    // Find compatible donors
-    static void findCompatibleDonors() {
-
-        System.out.print(
-                "\nEnter recipient blood group: ");
-
-        String recipient = sc.nextLine().toUpperCase();
-
-        if (!isValidBloodGroup(recipient)) {
-            System.out.println("Invalid blood group.");
-            return;
-        }
-
-        System.out.println(
-                "\nCompatible donors for " + recipient + ":");
-
-        boolean found = false;
-
-        for (Donor donor : donors) {
-
-            if (isCompatible(
-                    recipient,
-                    donor.bloodGroup)) {
-
-                donor.display();
-                found = true;
-            }
-        }
-
-        if (!found) {
-            System.out.println(
-                    "No compatible donors found.");
-        }
-    }
-
-    // Compatibility function
-    static boolean isCompatible(
-            String recipient,
-            String donor) {
-
+    static boolean compatible(String recipient, String donor) {
         switch (recipient) {
-
             case "O-":
                 return donor.equals("O-");
-
             case "O+":
                 return donor.equals("O-") ||
                         donor.equals("O+");
-
             case "A-":
                 return donor.equals("O-") ||
                         donor.equals("A-");
-
             case "A+":
                 return donor.equals("O-") ||
                         donor.equals("O+") ||
                         donor.equals("A-") ||
                         donor.equals("A+");
-
             case "B-":
                 return donor.equals("O-") ||
                         donor.equals("B-");
-
             case "B+":
                 return donor.equals("O-") ||
                         donor.equals("O+") ||
                         donor.equals("B-") ||
                         donor.equals("B+");
-
             case "AB-":
                 return donor.equals("O-") ||
                         donor.equals("A-") ||
                         donor.equals("B-") ||
                         donor.equals("AB-");
-
             case "AB+":
                 return true;
-
             default:
                 return false;
         }
     }
 
-    // Validate blood group
-    static boolean isValidBloodGroup(String group) {
 
-        return getBloodGroupIndex(group) != -1;
-    }
+    static ArrayList<Donor> loadDonors() {
+        ArrayList<Donor> list = new ArrayList<>();
 
-    // Get blood group index
-    static int getBloodGroupIndex(String group) {
+        try {
+            Path path = Paths.get(FILE);
 
-        for (int i = 0; i < bloodGroups.length; i++) {
-
-            if (bloodGroups[i].equals(group)) {
-                return i;
+            if (Files.exists(path)) {
+                for (String line : Files.readAllLines(path)) {
+                    try {
+                        Donor d = Donor.fromFile(line.trim());
+                        if (validGroup(d.getGroup())) {
+                            list.add(d);
+                        }
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Skipping invalid record.");
+                    }
+                }
             }
+        } catch (IOException e) {
+            System.out.println("File read error: " + e.getMessage());
         }
 
-        return -1;
+        return list;
     }
-}
+
+    
+    static void saveDonor(Donor d) {
+        try {
+            Files.write(
+                    Paths.get(FILE),
+                    Collections.singletonList(d.toFile()),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            System.out.println("File save error: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+
+        
+        ArrayList<Donor> donors = loadDonors();
+        HashMap<String, Integer> stock = new HashMap<>();
+
+        
+        Arrays.stream(GROUPS).forEach(g -> stock.put(g, 0));
+
+        
+        while (true) {
+            System.out.println("\n=== BLOOD BANK SYSTEM ===");
+            System.out.println("1. Add donor");
+            System.out.println("2. View donors");
+            System.out.println("3. View inventory");
+            System.out.println("4. Add blood units");
+            System.out.println("5. Issue blood units");
+            System.out.println("6. Find compatible donors");
+            System.out.println("7. Search donor by name");
+            System.out.println("8. Sorted donor report");
+            System.out.println("9. Exit");
+            System.out.print("Enter choice: ");
+
+            try {
+                int choice = Integer.parseInt(sc.nextLine().trim());
+
+                switch (choice) {
+                    case 1: {
+                        
+                        System.out.print("Name: ");
+                        String name = sc.nextLine().trim();
+
+                        System.out.print("Age: ");
+                        int age = Integer.parseInt(sc.nextLine().trim());
+
+                        System.out.print("Blood group: ");
+                        String group = sc.nextLine().trim()
+                                .toUpperCase();
+
+                        System.out.print("Phone: ");
+                        String phone = sc.nextLine().trim();
+
+                        System.out.print("City: ");
+                        String city = sc.nextLine().trim();
+
+                        
+                        if (name.isEmpty() || age < 18 ||
+                                !validGroup(group) ||
+                                phone.isEmpty() || city.isEmpty()) {
+                            System.out.println(
+                                    "Invalid details. Check age (18+) and group.");
+                            break;
+                        }
+
+                        
+                        Donor d = new Donor(
+                                donors.size() + 1001, name, age,
+                                group, phone, city);
+
+                        donors.add(d);
+                        saveDonor(d);
+                        System.out.println("Donor registered.");
+                        break;
+                    }
+
+                    case 2:
+                        
+                        for (Donor d : donors)
+                            d.display();
+                        if (donors.isEmpty())
+                            System.out.println("No donor records.");
+                        break;
+
+                    case 3:
+                        
+                        stock.forEach((g, units) -> System.out.println(g + " : " +
+                                units + " units"));
+                        break;
+
+                    case 4: {
+                        System.out.print("Blood group: ");
+                        String g = sc.nextLine().trim().toUpperCase();
+
+                        System.out.print("Units to add: ");
+                        int units = Integer.parseInt(
+                                sc.nextLine().trim());
+
+                        if (!validGroup(g) || units <= 0) {
+                            System.out.println("Invalid input.");
+                            break;
+                        }
+
+                        stock.put(g, stock.get(g) + units);
+                        System.out.println("Stock updated.");
+                        break;
+                    }
+
+                    case 5: {
+                        System.out.print("Blood group: ");
+                        String g = sc.nextLine().trim().toUpperCase();
+
+                        System.out.print("Units to issue: ");
+                        int units = Integer.parseInt(
+                                sc.nextLine().trim());
+
+                        if (!validGroup(g) || units <= 0) {
+                            System.out.println("Invalid input.");
+                        } else if (stock.get(g) >= units) {
+                            stock.put(g, stock.get(g) - units);
+                            System.out.println("Stock updated.");
+                        } else {
+                            System.out.println("Insufficient stock.");
+                        }
+                        break;
+                    }
+
+                    case 6: {
+                        System.out.print("Recipient group: ");
+                        String recipient = sc.nextLine()
+                                .trim().toUpperCase();
+
+                        if (!validGroup(recipient)) {
+                            System.out.println("Invalid group.");
+                            break;
+                        }
+
+                        
+                        List<Donor> matches = donors.stream()
+                                .filter(d -> compatible(
+                                        recipient, d.getGroup()))
+                                .collect(Collectors.toList());
+
+                        matches.forEach(Donor::display);
+
+                        if (matches.isEmpty())
+                            System.out.println("No matching donors.");
+                        break;
+                    }
+
+                    case 7: {
+                        System.out.print("Enter name to search: ");
+                        String name = sc.nextLine().trim();
+
+                        
+                        List<Donor> found = donors.stream()
+                                .filter(d -> d.getName().equalsIgnoreCase(name))
+                                .collect(Collectors.toList());
+
+                        found.forEach(Donor::display);
+                        if (found.isEmpty())
+                            System.out.println("Donor not found.");
+                        break;
+                    }
+
+                    case 8: {
+                        
+                        List<Donor> sorted = donors.stream()
+                                .sorted()
+                                .collect(Collectors.toList());
+
+                        System.out.println("Total donors: " +
+                                sorted.size());
+                        sorted.forEach(Donor::display);
+                        break;
+                    }
+
+                    case 9:
+                        System.out.println("Thank you!");
+                        return;
+
+                    default:
+                        System.out.println("Choose 1 to 9.");
+                }
+
+            } catch (NumberFormatException e) {
+                
+                System.out.println("Please enter a valid number.");
+            }
+        }
+    }
+}  
